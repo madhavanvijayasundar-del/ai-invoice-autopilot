@@ -7,7 +7,16 @@ from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 
-st.set_page_config(page_title="AI Invoice & GST Autopilot", page_icon="⚡", layout="wide")
+st.set_page_config(
+    page_title="AI Invoice & GST Autopilot",
+    page_icon="🧾",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+    menu_items={
+        "Get Help": "https://wa.me/916383194844",
+        "About": "AI Batch Invoice & GST Autopilot — Built by Madhavan V (Pollachi, TN)",
+    },
+)
 
 # --- SIDEBAR: SETTINGS & API PROTECTION ---
 with st.sidebar:
@@ -116,22 +125,37 @@ def verify_invoice_math(inv: InvoiceSchema):
 
     diff = round(inv.grand_total - items_sum, 2)
     return False, f"⚠️ REVIEW NEEDED (Diff: {diff})", items_sum
-
+# Initialize a counter so the file uploader knows when to wipe uploaded files
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
 
 # --- MAIN UI ---
-st.title("⚡ AI Batch Invoice & GST Autopilot")
+col_title, col_reset = st.columns([3, 1])
+
+with col_title:
+    st.title("⚡ AI Batch Invoice & GST Autopilot")
+
+with col_reset:
+    st.write("")  # Pushes the button down slightly to align with the title
+    if st.button("🔄 Clear Data / Reset", width="stretch"):
+        next_key = st.session_state.uploader_key + 1
+        st.session_state.clear()
+        st.session_state.uploader_key = next_key
+        st.rerun()
+
 st.markdown("Upload **1 to 50+ invoices** (PDF, PNG, JPG) at once to generate a single, math-verified Excel workbook.")
 
 uploaded_files = st.file_uploader(
     "Drop Bulk Invoices Here",
     type=["pdf", "png", "jpg", "jpeg"],
     accept_multiple_files=True,
+    key=f"invoice_uploader_{st.session_state.uploader_key}"
 )
 
 if uploaded_files:
     st.info(f"📁 **{len(uploaded_files)} file(s)** queued for batch extraction.")
 
-    if st.button(f"🚀 Process All {len(uploaded_files)} Invoice(s)", type="primary", use_container_width=True):
+    if st.button(f"🚀 Process All {len(uploaded_files)} Invoice(s)", type="primary", width="stretch"):
         batch_start = time.time()
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -228,11 +252,11 @@ if uploaded_files:
 
         tab1, tab2, tab3 = st.tabs(["📦 Combined Line Items", "🧾 Master Invoice Summary", "⚠️ Review Exceptions"])
         with tab1:
-            st.dataframe(items_df, use_container_width=True, hide_index=True)
+            st.dataframe(items_df, width="stretch", hide_index=True)
         with tab2:
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
+            st.dataframe(summary_df, width="stretch", hide_index=True)
         with tab3:
-            st.dataframe(exceptions_df, use_container_width=True, hide_index=True)
+            st.dataframe(exceptions_df, width="stretch", hide_index=True)
 
         # Build 3-Sheet Combined Excel File
         excel_buffer = io.BytesIO()
@@ -247,5 +271,5 @@ if uploaded_files:
             file_name=f"Batch_Invoices_{len(uploaded_files)}_Files.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary",
-            use_container_width=True,
+            width="stretch",
         )
